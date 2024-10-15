@@ -1,0 +1,18 @@
+# macOs Directory
+**/.DS_Store
+
+# Build Directory
+*/build
+
+# Vscode
+.vscode/
+# Zed
+.zed/
+# Neovim
+.nvim.lua
+.nvimrc
+.nvim/
+# Emacs
+.dir-locals.el
+# Nix Environment
+shell.nix

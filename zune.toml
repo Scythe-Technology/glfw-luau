@@ -1,0 +1,34 @@
+# Zune Configuration
+
+# Debug settings for Zune
+#  This affects the way Zune handles errors and debug information.
+[runtime.debug]
+detailedError=true
+
+# Require settings for Zune
+#  This affects the way Zune loads files.
+[resolvers.require]
+mode="RelativeToFile"
+
+# Formatter settings for Zune
+#  This affects the output of the formatter while printing.
+[resolvers.formatter]
+maxDepth=4
+useColor=true
+showTableAddress=true
+showRecursiveTable=false
+
+# Compiling settings for Zune
+#  This affects all required files and the main file.
+[compiling]
+debugLevel=2
+optimizationLevel=1
+nativeCodeGen=true
+
+# FFlag settings for Luau
+#  You can use `zune luau list-fflags` to list all available FFlags.
+# [luau.fflags]
+# DebugCodegenOptSize=false
+
+[experimental]
+ffi=true
