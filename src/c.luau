@@ -1,6 +1,6 @@
+--!strict
 local fs = require("@zcore/fs");
 local ffi = require("@zcore/ffi");
-local task = require("@zcore/task");
 local process = require("@zcore/process");
 
 local GLFW_TRUE = 1;
@@ -28,8 +28,18 @@ local GLFWwindowclosefun = {
     returns = ffi.types.void,
     args = {ffi.types.pointer},
 };
+--void(* GLFWwindowrefreshfun) (GLFWwindow *window)
+local GLFWwindowrefreshfun = {
+    returns = ffi.types.void,
+    args = {ffi.types.pointer},
+};
 --void(* GLFWwindowfocusfun) (GLFWwindow *window, int focused)
 local GLFWwindowfocusfun = {
+    returns = ffi.types.void,
+    args = {ffi.types.pointer, ffi.types.i32},
+};
+--void(* GLFWwindowiconifyfun) (GLFWwindow *window, int iconified)
+local GLFWwindowiconifyfun = {
     returns = ffi.types.void,
     args = {ffi.types.pointer, ffi.types.i32},
 };
@@ -42,6 +52,11 @@ local GLFWwindowmaximizefun = {
 local GLFWframebuffersizefun = {
     returns = ffi.types.void,
     args = {ffi.types.pointer, ffi.types.i32, ffi.types.i32},
+};
+--void(* GLFWwindowcontentscalefun) (GLFWwindow *window, float xscale, float yscale)
+local GLFWwindowcontentscalefun = {
+    returns = ffi.types.void,
+    args = {ffi.types.pointer, ffi.types.float, ffi.types.float},
 };
 
 local glfw = ffi.dlopen(LIBRARY_PATH, {
@@ -89,6 +104,11 @@ local glfw = ffi.dlopen(LIBRARY_PATH, {
     --void glfwDestroyWindow (GLFWwindow *window)
     glfwDestroyWindow = {
         returns = ffi.types.void,
+        args = {ffi.types.pointer},
+    },
+    --int glfwWindowShouldClose (GLFWwindow *window)
+    glfwWindowShouldClose = {
+        returns = ffi.types.i32,
         args = {ffi.types.pointer},
     },
     --const char *glfwGetWindowTitle (GLFWwindow *window)
@@ -216,6 +236,26 @@ local glfw = ffi.dlopen(LIBRARY_PATH, {
         returns = ffi.types.pointer,
         args = {ffi.types.pointer, ffi.types.pointer},
     },
+    --GLFWwindowiconifyfun glfwSetWindowIconifyCallback (GLFWwindow *window, GLFWwindowiconifyfun callback)
+    glfwSetWindowIconifyCallback = {
+        returns = ffi.types.pointer,
+        args = {ffi.types.pointer, ffi.types.pointer},
+    },
+    --GLFWwindowmaximizefun glfwSetWindowMaximizeCallback (GLFWwindow *window, GLFWwindowmaximizefun callback)
+    glfwSetWindowMaximizeCallback = {
+        returns = ffi.types.pointer,
+        args = {ffi.types.pointer, ffi.types.pointer},
+    },
+    --GLFWframebuffersizefun glfwSetFramebufferSizeCallback (GLFWwindow *window, GLFWframebuffersizefun callback)
+    glfwSetFramebufferSizeCallback = {
+        returns = ffi.types.pointer,
+        args = {ffi.types.pointer, ffi.types.pointer},
+    },
+    --GLFWwindowcontentscalefun glfwSetWindowContentScaleCallback (GLFWwindow *window, GLFWwindowcontentscalefun callback)
+    glfwSetWindowContentScaleCallback = {
+        returns = ffi.types.pointer,
+        args = {ffi.types.pointer, ffi.types.pointer},
+    },
     --void glfwPollEvents (void)
     glfwPollEvents = {
         returns = ffi.types.void,
@@ -231,7 +271,12 @@ local glfw = ffi.dlopen(LIBRARY_PATH, {
         returns = ffi.types.void,
         args = {ffi.types.double},
     },
-
+    --void glfwSwapBuffers (GLFWwindow *window)
+    glfwSwapBuffers = {
+        returns = ffi.types.void,
+        args = {ffi.types.pointer},
+    },
+    
     --void glfwMakeContextCurrent (GLFWwindow *window)
     glfwMakeContextCurrent = {
         returns = ffi.types.void,
@@ -363,347 +408,126 @@ local ErrorCodes = {
     [0x0001000E] = "PlatformUnavailable";
 }
 
-local module = {};
+type pointer = buffer;
 
-function module.init(): ()
-    if (glfw.glfwInit() == GLFW_FALSE) then
-        module.emitError();
-    end
-end
+type glfw_c = {
+    GLFW_TRUE : number,
+    GLFW_FALSE : number,
+    GLFWwindowsizefun : ffi.FunctionDefinition,
+    GLFWwindowposfun : ffi.FunctionDefinition,
+    GLFWwindowclosefun : ffi.FunctionDefinition,
+    GLFWwindowrefreshfun : ffi.FunctionDefinition,
+    GLFWwindowfocusfun : ffi.FunctionDefinition,
+    GLFWwindowiconifyfun : ffi.FunctionDefinition,
+    GLFWwindowmaximizefun : ffi.FunctionDefinition,
+    GLFWframebuffersizefun : ffi.FunctionDefinition,
+    GLFWwindowcontentscalefun : ffi.FunctionDefinition,
+    glfwInit : () -> number,
+    glfwTerminate : () -> (),
+    glfwInitHint : (hint: number, value: number) -> (),
+    glfwGetVersionString : () -> buffer,
+    glfwGetError : (descPtr: pointer) -> number,
+    glfwGetPlatform : () -> number,
+    glfwPlatformSupported : (platform: number) -> number,
+    glfwCreateWindow : (width: number, height: number, title: string, monitor: pointer?, share: pointer?) -> pointer,
+    glfwDestroyWindow : (window: pointer) -> (),
+    glfwWindowShouldClose : (window: pointer) -> number,
+    glfwGetWindowTitle : (window: pointer) -> buffer,
+    glfwSetWindowTitle : (window: pointer, title: string) -> (),
+    glfwGetWindowPos : (window: pointer, xpos: pointer, ypos: pointer) -> (),
+    glfwSetWindowPos : (window: pointer, xpos: number, ypos: number) -> (),
+    glfwGetWindowSize : (window: pointer, width: pointer, height: pointer) -> (),
+    glfwSetWindowSizeLimits : (window: pointer, minwidth: number, minheight: number, maxwidth: number, maxheight: number) -> (),
+    glfwSetWindowAspectRatio : (window: pointer, numer: number, denom: number) -> (),
+    glfwSetWindowSize : (window: pointer, width: number, height: number) -> (),
+    glfwGetFramebufferSize : (window: pointer, width: pointer, height: pointer) -> (),
+    glfwGetWindowFrameSize : (window: pointer, left: pointer, top: pointer, right: pointer, bottom: pointer) -> (),
+    glfwGetWindowOpacity : (window: pointer) -> number,
+    glfwSetWindowOpacity : (window: pointer, opacity: number) -> (),
+    glfwRestoreWindow : (window: pointer) -> (),
+    glfwMaximizeWindow : (window: pointer) -> (),
+    glfwShowWindow : (window: pointer) -> (),
+    glfwHideWindow : (window: pointer) -> (),
+    glfwFocusWindow : (window: pointer) -> (),
+    glfwRequestWindowAttention : (window: pointer) -> (),
+    glfwGetWindowMonitor : (window: pointer) -> pointer,
+    glfwSetWindowMonitor : (window: pointer, monitor: pointer, xpos: number, ypos: number, width: number, height: number, refreshRate: number) -> (),
+    glfwSetWindowPosCallback : (window: pointer, callback: pointer?) -> pointer,
+    glfwSetWindowSizeCallback : (window: pointer, callback: pointer?) -> pointer,
+    glfwSetWindowCloseCallback : (window: pointer, callback: pointer?) -> pointer,
+    glfwSetWindowRefreshCallback : (window: pointer, callback: pointer?) -> pointer,
+    glfwSetWindowFocusCallback : (window: pointer, callback: pointer?) -> pointer,
+    glfwSetWindowIconifyCallback : (window: pointer, callback: pointer?) -> pointer,
+    glfwSetWindowMaximizeCallback : (window: pointer, callback: pointer?) -> pointer,
+    glfwSetFramebufferSizeCallback : (window: pointer, callback: pointer?) -> pointer,
+    glfwSetWindowContentScaleCallback : (window: pointer, callback: pointer?) -> pointer,
+    glfwMakeContextCurrent : (window: pointer) -> (),
+    glfwPollEvents : () -> (),
+    glfwWaitEvents : () -> (),
+    glfwWaitEventsTimeout : (timeout: number) -> (),
+    glfwSwapBuffers : (window: pointer) -> (),
+}
 
-function module.terminate(): ()
-    glfw.glfwTerminate();
-end
+local export = {
+    glfw = {
+        GLFW_TRUE = GLFW_TRUE,
+        GLFW_FALSE = GLFW_FALSE,
+        GLFWwindowsizefun = GLFWwindowsizefun,
+        GLFWwindowposfun = GLFWwindowposfun,
+        GLFWwindowclosefun = GLFWwindowclosefun,
+        GLFWwindowrefreshfun = GLFWwindowrefreshfun,
+        GLFWwindowfocusfun = GLFWwindowfocusfun,
+        GLFWwindowiconifyfun = GLFWwindowiconifyfun,
+        GLFWwindowmaximizefun = GLFWwindowmaximizefun,
+        GLFWframebuffersizefun = GLFWframebuffersizefun,
+        GLFWwindowcontentscalefun = GLFWwindowcontentscalefun,
+        glfwInit = glfw.glfwInit,
+        glfwTerminate = glfw.glfwTerminate,
+        glfwInitHint = glfw.glfwInitHint,
+        glfwGetVersionString = glfw.glfwGetVersionString,
+        glfwGetError = glfw.glfwGetError,
+        glfwGetPlatform = glfw.glfwGetPlatform,
+        glfwPlatformSupported = glfw.glfwPlatformSupported,
+        glfwCreateWindow = glfw.glfwCreateWindow,
+        glfwDestroyWindow = glfw.glfwDestroyWindow,
+        glfwWindowShouldClose = glfw.glfwWindowShouldClose,
+        glfwGetWindowTitle = glfw.glfwGetWindowTitle,
+        glfwSetWindowTitle = glfw.glfwSetWindowTitle,
+        glfwGetWindowPos = glfw.glfwGetWindowPos,
+        glfwSetWindowPos = glfw.glfwSetWindowPos,
+        glfwGetWindowSize = glfw.glfwGetWindowSize,
+        glfwSetWindowSizeLimits = glfw.glfwSetWindowSizeLimits,
+        glfwSetWindowAspectRatio = glfw.glfwSetWindowAspectRatio,
+        glfwSetWindowSize = glfw.glfwSetWindowSize,
+        glfwGetFramebufferSize = glfw.glfwGetFramebufferSize,
+        glfwGetWindowFrameSize = glfw.glfwGetWindowFrameSize,
+        glfwGetWindowOpacity = glfw.glfwGetWindowOpacity,
+        glfwSetWindowOpacity = glfw.glfwSetWindowOpacity,
+        glfwRestoreWindow = glfw.glfwRestoreWindow,
+        glfwMaximizeWindow = glfw.glfwMaximizeWindow,
+        glfwShowWindow = glfw.glfwShowWindow,
+        glfwHideWindow = glfw.glfwHideWindow,
+        glfwFocusWindow = glfw.glfwFocusWindow,
+        glfwRequestWindowAttention = glfw.glfwRequestWindowAttention,
+        glfwGetWindowMonitor = glfw.glfwGetWindowMonitor,
+        glfwSetWindowMonitor = glfw.glfwSetWindowMonitor,
+        glfwSetWindowPosCallback = glfw.glfwSetWindowPosCallback,
+        glfwSetWindowSizeCallback = glfw.glfwSetWindowSizeCallback,
+        glfwSetWindowCloseCallback = glfw.glfwSetWindowCloseCallback,
+        glfwSetWindowRefreshCallback = glfw.glfwSetWindowRefreshCallback,
+        glfwSetWindowFocusCallback = glfw.glfwSetWindowFocusCallback,
+        glfwSetWindowIconifyCallback = glfw.glfwSetWindowIconifyCallback,
+        glfwSetWindowMaximizeCallback = glfw.glfwSetWindowMaximizeCallback,
+        glfwSetFramebufferSizeCallback = glfw.glfwSetFramebufferSizeCallback,
+        glfwSetWindowContentScaleCallback = glfw.glfwSetWindowContentScaleCallback,
+        glfwMakeContextCurrent = glfw.glfwMakeContextCurrent,
+        glfwPollEvents = glfw.glfwPollEvents,
+        glfwWaitEvents = glfw.glfwWaitEvents,
+        glfwWaitEventsTimeout = glfw.glfwWaitEventsTimeout,
+        glfwSwapBuffers = glfw.glfwSwapBuffers,
+    }::glfw_c,
+    Platforms = Platforms,
+    ErrorCodes = ErrorCodes,
+}
 
-function module.getVersionString(): string
-    return buffer.tostring(ffi.spanFromPtr(glfw.glfwGetVersionString(), 0));
-end
-
-function module.emitError() : never
-    local errname, errdesc = module.getError();
-    assert(errname and errdesc, "Failed to read error information");
-    error(`{errname} - {errdesc}`)
-end
-
-function module.getError()
-    local description = buffer.create(ffi.sizeOf(ffi.types.pointer));
-    local ptr = ffi.intFromPtr(buffer.create(ffi.sizeOf(ffi.types.pointer)), description);
-    local code = glfw.glfwGetError(ptr);
-    if (code == 0) then
-        return nil;
-    end
-    local error_name = ErrorCodes[code];
-    return error_name, buffer.tostring(ffi.spanFromPtr(description, 0));
-end
-
-function module.getPlatform(): number
-    return glfw.glfwGetPlatform();
-end
-function module.getPlatformName(platform: number): string
-    return Platforms[platform];
-end
-
-function module.platformSupported(platform: number): boolean
-    return glfw.glfwPlatformSupported(platform) == GLFW_TRUE;
-end
-
-local window = {};
-window.__index = window;
-
-function window.init(ptr: buffer)
-    return setmetatable({
-        handle = ptr,
-        callbacks = {},
-    }, window);
-end
-
---[=[
-    Returns the title of the specified window.
-]=]
-function window:getTitle(): string
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    return buffer.tostring(ffi.spanFromPtr(glfw.glfwGetWindowTitle(self.handle), 0));
-end
-
---[=[
-    Sets the title of the specified window.
-]=]
-function window:setTitle(title: string): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    glfw.glfwSetWindowTitle(self.handle, title);
-end
-
---[=[
-    Retrieves the position of the content area of the specified window. 
-]=]
-function window:getPosition(): (number, number)
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    local x = buffer.create(ffi.sizeOf(ffi.types.i32));
-    local y = buffer.create(ffi.sizeOf(ffi.types.i32));
-    glfw.glfwGetWindowPos(
-        self.handle,
-        ffi.intFromPtr(buffer.create(ffi.sizeOf(ffi.types.pointer)), x),
-        ffi.intFromPtr(buffer.create(ffi.sizeOf(ffi.types.pointer)), y)
-    );
-    return buffer.readi32(x, 0), buffer.readi32(y, 0);
-end
-
---[=[
-    Sets the position of the content area of the specified window.
-]=]
-function window:setPosition(x: number, y: number): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    glfw.glfwSetWindowPos(self.handle, x, y);
-end
-
---[=[
-    Retrieves the size of the content area of the specified window.
-]=]
-function window:getSize(): (number, number)
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    local width = buffer.create(ffi.sizeOf(ffi.types.i32));
-    local height = buffer.create(ffi.sizeOf(ffi.types.i32));
-    glfw.glfwGetWindowSize(
-        self.handle,
-        ffi.intFromPtr(buffer.create(ffi.sizeOf(ffi.types.pointer)), width),
-        ffi.intFromPtr(buffer.create(ffi.sizeOf(ffi.types.pointer)), height)
-    );
-    return buffer.readi32(width, 0), buffer.readi32(height, 0);
-end
-
---[=[
-    Sets the size of the content area of the specified window.
-]=]
-function window:setSize(width: number, height: number): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    glfw.glfwSetWindowSize(self.handle, width, height);
-end
-
---[=[
-    Sets the size limits of the specified window.
-]=]
-function window:setSizeLimits(minwidth: number, minheight: number, maxwidth: number, maxheight: number): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    glfw.glfwSetWindowSizeLimits(self.handle, minwidth, minheight, maxwidth, maxheight);
-end
-
---[=[
-    Sets the aspect ratio of the specified window.
-]=]
-function window:setAspectRatio(numer: number, denom: number): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    glfw.glfwSetWindowAspectRatio(self.handle, numer, denom);
-end
-
---[=[
-    Returns the opacity of the whole window.
-]=]
-function window:getOpacity(): number
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    return glfw.glfwGetWindowOpacity(self.handle);
-end
-
---[=[
-    Sets the opacity of the whole window.
-]=]
-function window:setOpacity(opacity: number): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    glfw.glfwSetWindowOpacity(self.handle, opacity);
-end
-
---[=[
-    Restores the specified window.
-]=]
-function window:restore(): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    glfw.glfwRestoreWindow(self.handle);
-end
-
---[=[
-    Maximizes the specified window.
-]=]
-function window:maximize(): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    glfw.glfwMaximizeWindow(self.handle);
-end
-
---[=[
-    Shows the specified window.
-]=]
-function window:show(): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    glfw.glfwShowWindow(self.handle);
-end
-
---[=[
-    Hides the specified window.
-]=]
-function window:hide(): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    glfw.glfwHideWindow(self.handle);
-end
-
---[=[
-    Brings the specified window to front and sets input focus.
-]=]
-function window:focus(): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    glfw.glfwFocusWindow(self.handle);
-end
-
---[=[
-    Requests user attention to the specified window.
-]=]
-function window:requestAttention(): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    glfw.glfwRequestWindowAttention(self.handle);
-end
-
---TODO: Implement `Monitor`
---[=[
-    Retrieves the monitor that the window is in fullscreen on.
-]=]
-function window:getMonitor(): buffer
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    return glfw.glfwGetWindowMonitor(self.handle);
-end
-
---TODO: Implement `Monitor`
---[=[
-    Sets the mode, monitor, video mode and placement of a window.
-]=]
-function window:setMonitor(monitor: buffer, xpos: number, ypos: number, width: number, height: number, refreshRate: number): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    glfw.glfwSetWindowMonitor(self.handle, monitor, xpos, ypos, width, height, refreshRate);
-end
-
---[=[
-    Makes the context of the specified window current for the calling thread.
-]=]
-function window:makeContextCurrent(): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    glfw.glfwMakeContextCurrent(self.handle);
-end
-
---[=[
-    Sets the position callback for the specified window.
-]=]
-function window:setPositionCallback(callback: (window: Window, xpos: number, ypos: number) -> ()): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    local closure = ffi.closure(GLFWwindowposfun, callback);
-    self.callbacks.pos = closure;
-    glfw.glfwSetWindowPosCallback(self.handle, closure.ptr);
-end
-
---[=[
-    Sets the size callback for the specified window.
-]=]
-function window:setSizeCallback(callback: (window: Window, width: number, height: number) -> ()): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    local closure = ffi.closure(GLFWwindowsizefun, callback);
-    self.callbacks.size = closure;
-    glfw.glfwSetWindowSizeCallback(self.handle, closure.ptr);
-end
-
---[=[
-    Sets the close callback for the specified window.
-]=]
-function window:setCloseCallback(callback: (window: Window) -> ()): ()
-    if (not self.handle) then
-        error("Window handle is invalid");
-    end
-    local closure = ffi.closure(GLFWwindowclosefun, callback);
-    self.callbacks.close = closure;
-    glfw.glfwSetWindowCloseCallback(self.handle, closure.ptr);
-end
-
---[=[
-    Destroys the specified window and its context.
-]=]
-function window:destroy(): ()
-    if (not self.handle) then
-        return;
-    end
-    glfw.glfwDestroyWindow(self.handle);
-    self.handle = nil;
-end
-
-export type Window = typeof(window.init(buffer.create(0)));
-
-function module.createWindow(title: string, width: number, height: number): Window
-    local ptr = glfw.glfwCreateWindow(width, height, title, nil, nil);
-    if (ffi.eqlPtr(ptr, buffer.create(ffi.sizeOf(ffi.types.pointer)))) then
-        module.emitError();
-    end
-    return window.init(ptr);
-end
-
-do
-    local testing = require("@zcore/testing");
-    
-    testing.test("Run", function()
-        print(module.getVersionString())
-    
-        module.init();
-        
-        local w = module.createWindow("Zune - GLFW", 640, 480);
-        print(w:getSize());
-        w:setSize(800, 600);
-        
-        w:setCloseCallback(function(window)
-            print("Window closed");
-            w:destroy();
-        end);
-        
-        while true do
-            
-            glfw.glfwPollEvents();
-            -- print(w:getPosition());
-            task.wait()
-        end
-    end)
-end
-
-return module;
+return export;
