@@ -8,10 +8,10 @@ local glfw = c.glfw;
 local window = {};
 window.__index = window;
 
-function window.init(ptr: buffer)
+function window.init(ptr: ffi.Pointer)
     return setmetatable({
-        handle = ptr::buffer?,
-        callbacks = {}::{[string]: any?},
+        handle = ptr::ffi.Pointer?,
+        callbacks = {}::{[string]: ffi.Closure?},
     }, window);
 end
 
@@ -22,7 +22,7 @@ function window.getTitle(self: Window): string
     if (not self.handle) then
         error("Window handle is invalid");
     end
-    return buffer.tostring(ffi.spanFromPtr(glfw.glfwGetWindowTitle(self.handle), 0));
+    return buffer.tostring(glfw.glfwGetWindowTitle(self.handle):span());
 end
 
 --[=[
@@ -42,14 +42,14 @@ function window.getPosition(self: Window): (number, number)
     if (not self.handle) then
         error("Window handle is invalid");
     end
-    local x = buffer.create(ffi.sizeOf(ffi.types.i32));
-    local y = buffer.create(ffi.sizeOf(ffi.types.i32));
+    local x = ffi.alloc(ffi.sizeOf(ffi.types.i32)):release();
+    local y = ffi.alloc(ffi.sizeOf(ffi.types.i32)):release();
     glfw.glfwGetWindowPos(
         self.handle,
-        ffi.bufferToPtr(x),
-        ffi.bufferToPtr(y)
+        x,
+        y
     );
-    return buffer.readi32(x, 0), buffer.readi32(y, 0);
+    return x:readi32(), y:readi32();
 end
 
 --[=[
@@ -69,14 +69,14 @@ function window.getSize(self: Window): (number, number)
     if (not self.handle) then
         error("Window handle is invalid");
     end
-    local width = buffer.create(ffi.sizeOf(ffi.types.i32));
-    local height = buffer.create(ffi.sizeOf(ffi.types.i32));
+    local width = ffi.alloc(ffi.sizeOf(ffi.types.i32)):release();
+    local height = ffi.alloc(ffi.sizeOf(ffi.types.i32)):release();
     glfw.glfwGetWindowSize(
         self.handle,
-        ffi.bufferToPtr(width),
-        ffi.bufferToPtr(height)
+        width,
+        height
     );
-    return buffer.readi32(width, 0), buffer.readi32(height, 0);
+    return width:readi32(), height:readi32();
 end
 
 --[=[
@@ -193,7 +193,7 @@ end
 --[=[
     Retrieves the monitor that the window is in fullscreen on.
 ]=]
-function window.getMonitor(self: Window): buffer
+function window.getMonitor(self: Window): ffi.Pointer
     if (not self.handle) then
         error("Window handle is invalid");
     end
@@ -204,7 +204,7 @@ end
 --[=[
     Sets the mode, monitor, video mode and placement of a window.
 ]=]
-function window.setMonitor(self: Window, monitor: buffer, xpos: number, ypos: number, width: number, height: number, refreshRate: number): ()
+function window.setMonitor(self: Window, monitor: ffi.Pointer, xpos: number, ypos: number, width: number, height: number, refreshRate: number): ()
     if (not self.handle) then
         error("Window handle is invalid");
     end
@@ -245,20 +245,25 @@ function window.setSizeCallback(self: Window, callback: (window: Window, width: 
     glfw.glfwSetWindowSizeCallback(self.handle, closure.ptr);
 end
 
-local function setOptionalCallback(ffiFn : (...any) -> any, window: Window, fnDef: ffi.FunctionDefinition, callback: ((...any) -> any)?): ffi.Closure?
+local function setOptionalCallback(name: string, ffiFn : (...any) -> ffi.Pointer, window: Window, fnDef: ffi.FunctionDefinition, callback: ((...any) -> any)?): ()
+    local previousCallback = window.callbacks[name];
+    if (previousCallback) then
+        previousCallback.ptr:release();
+    end
     if (not callback) then
         ffiFn(window.handle, nil);
-        return nil;
+        window.callbacks[name] = nil;
+        return;
     end
     local closure = ffi.closure(glfw.GLFWwindowclosefun, function(...)
         local args = {...};
-        if (ffi.eqlPtr(args[1], window.handle)) then
+        if (args[1] == window.handle) then
             return callback(window, select(2, ...));
         end
         return callback(...);
     end);
     ffiFn(window.handle, closure.ptr);
-    return closure;
+    window.callbacks[name] = closure;
 end
 
 --[=[
@@ -268,7 +273,8 @@ function window.setCloseCallback(self: Window, callback: ((window: Window) -> ()
     if (not self.handle) then
         error("Window handle is invalid");
     end
-    self.callbacks.close = setOptionalCallback(
+    setOptionalCallback(
+        "close",
         glfw.glfwSetWindowCloseCallback,
         self,
         glfw.GLFWwindowclosefun,
@@ -283,7 +289,8 @@ function window.setRefreshCallback(self: Window, callback: (window: Window) -> (
     if (not self.handle) then
         error("Window handle is invalid");
     end
-    self.callbacks.refresh = setOptionalCallback(
+    setOptionalCallback(
+        "refresh",
         glfw.glfwSetWindowRefreshCallback,
         self,
         glfw.GLFWwindowrefreshfun,
@@ -298,7 +305,8 @@ function window.setFocusCallback(self: Window, callback: (window: Window, focuse
     if (not self.handle) then
         error("Window handle is invalid");
     end
-    self.callbacks.focus = setOptionalCallback(
+    setOptionalCallback(
+        "focus",
         glfw.glfwSetWindowFocusCallback,
         self,
         glfw.GLFWwindowfocusfun,
@@ -313,7 +321,8 @@ function window.setIconifyCallback(self: Window, callback: (window: Window, icon
     if (not self.handle) then
         error("Window handle is invalid");
     end
-    self.callbacks.iconify = setOptionalCallback(
+    setOptionalCallback(
+        "iconify",
         glfw.glfwSetWindowIconifyCallback,
         self,
         glfw.GLFWwindowiconifyfun,
@@ -328,7 +337,8 @@ function window.setMaximizeCallback(self: Window, callback: (window: Window, max
     if (not self.handle) then
         error("Window handle is invalid");
     end
-    self.callbacks.maximize = setOptionalCallback(
+    setOptionalCallback(
+        "maximize",
         glfw.glfwSetWindowMaximizeCallback,
         self,
         glfw.GLFWwindowmaximizefun,
@@ -343,7 +353,8 @@ function window.setFramebufferSizeCallback(self: Window, callback: (window: Wind
     if (not self.handle) then
         error("Window handle is invalid");
     end
-    self.callbacks.framebufferSize = setOptionalCallback(
+    setOptionalCallback(
+        "framebufferSize",
         glfw.glfwSetFramebufferSizeCallback,
         self,
         glfw.GLFWframebuffersizefun,
@@ -358,7 +369,8 @@ function window.setContentScaleCallback(self: Window, callback: (window: Window,
     if (not self.handle) then
         error("Window handle is invalid");
     end
-    self.callbacks.contentScale = setOptionalCallback(
+    setOptionalCallback(
+        "contentScale",
         glfw.glfwSetWindowContentScaleCallback,
         self,
         glfw.GLFWwindowcontentscalefun,
@@ -397,6 +409,6 @@ function window.destroy(self: Window): ()
     self.handle = nil::any;
 end
 
-export type Window = typeof(window.init(buffer.create(0)));
+export type Window = typeof(window.init(ffi.alloc(0)));
 
 return window;

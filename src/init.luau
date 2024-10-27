@@ -20,7 +20,7 @@ function module.terminate(): ()
 end
 
 function module.getVersionString(): string
-    return buffer.tostring(ffi.spanFromPtr(glfw.glfwGetVersionString(), 0));
+    return buffer.tostring(glfw.glfwGetVersionString():span());
 end
 
 function module.emitError() : never
@@ -30,14 +30,13 @@ function module.emitError() : never
 end
 
 function module.getError() : (string?, string?)
-    local description = buffer.create(ffi.sizeOf(ffi.types.pointer));
-    local ptr = ffi.bufferToPtr(description);
-    local code = glfw.glfwGetError(ptr);
+    local description = ffi.alloc(ffi.sizeOf(ffi.types.pointer)):release();
+    local code = glfw.glfwGetError(description);
     if (code == 0) then
         return nil;
     end
     local error_name = c.ErrorCodes[code];
-    return error_name, buffer.tostring(ffi.spanFromPtr(description, 0));
+    return error_name, buffer.tostring(description:readPtr():span());
 end
 
 function module.getPlatform(): number
@@ -53,7 +52,7 @@ end
 
 function module.createWindow(title: string, width: number, height: number): window.Window
     local ptr = glfw.glfwCreateWindow(width, height, title, nil, nil);
-    if (ffi.eqlPtr(ptr, buffer.create(ffi.sizeOf(ffi.types.pointer)))) then
+    if (ptr:isNull()) then
         module.emitError();
     end
     return window.init(ptr);

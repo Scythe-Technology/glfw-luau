@@ -408,7 +408,7 @@ local ErrorCodes = {
     [0x0001000E] = "PlatformUnavailable";
 }
 
-type pointer = buffer;
+type pointer = ffi.Pointer;
 
 type glfw_c = {
     GLFW_TRUE : number,
@@ -425,14 +425,14 @@ type glfw_c = {
     glfwInit : () -> number,
     glfwTerminate : () -> (),
     glfwInitHint : (hint: number, value: number) -> (),
-    glfwGetVersionString : () -> buffer,
+    glfwGetVersionString : () -> pointer,
     glfwGetError : (descPtr: pointer) -> number,
     glfwGetPlatform : () -> number,
     glfwPlatformSupported : (platform: number) -> number,
     glfwCreateWindow : (width: number, height: number, title: string, monitor: pointer?, share: pointer?) -> pointer,
     glfwDestroyWindow : (window: pointer) -> (),
     glfwWindowShouldClose : (window: pointer) -> number,
-    glfwGetWindowTitle : (window: pointer) -> buffer,
+    glfwGetWindowTitle : (window: pointer) -> pointer,
     glfwSetWindowTitle : (window: pointer, title: string) -> (),
     glfwGetWindowPos : (window: pointer, xpos: pointer, ypos: pointer) -> (),
     glfwSetWindowPos : (window: pointer, xpos: number, ypos: number) -> (),
