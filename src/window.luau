@@ -1,17 +1,17 @@
 --!strict
-local ffi = require("@zcore/ffi");
+local ffi = zune.ffi;
 
-local c = require("c");
+local c = require("./c");
 
 local glfw = c.glfw;
 
 local window = {};
 window.__index = window;
 
-function window.init(ptr: ffi.Pointer)
+function window.init(ptr: FFIPointer)
     return setmetatable({
-        handle = ptr::ffi.Pointer?,
-        callbacks = {}::{[string]: ffi.Closure?},
+        handle = ptr::FFIPointer?,
+        callbacks = {}::{[string]: FFIPointer?},
     }, window);
 end
 
@@ -42,8 +42,8 @@ function window.getPosition(self: Window): (number, number)
     if (not self.handle) then
         error("Window handle is invalid");
     end
-    local x = ffi.alloc(ffi.sizeOf(ffi.types.i32)):release();
-    local y = ffi.alloc(ffi.sizeOf(ffi.types.i32)):release();
+    local x = ffi.alloc(ffi.types.i32:size()):release();
+    local y = ffi.alloc(ffi.types.i32:size()):release();
     glfw.glfwGetWindowPos(
         self.handle,
         x,
@@ -69,9 +69,26 @@ function window.getSize(self: Window): (number, number)
     if (not self.handle) then
         error("Window handle is invalid");
     end
-    local width = ffi.alloc(ffi.sizeOf(ffi.types.i32)):release();
-    local height = ffi.alloc(ffi.sizeOf(ffi.types.i32)):release();
+    local width = ffi.alloc(ffi.types.i32:size()):release();
+    local height = ffi.alloc(ffi.types.i32:size()):release();
     glfw.glfwGetWindowSize(
+        self.handle,
+        width,
+        height
+    );
+    return width:readi32(), height:readi32();
+end
+
+--[=[
+    Retrieves the size of the framebuffer of the specified window.
+]=]
+function window.getFramebufferSize(self: Window): (number, number)
+    if (not self.handle) then
+        error("Window handle is invalid");
+    end
+    local width = ffi.alloc(ffi.types.i32:size()):release();
+    local height = ffi.alloc(ffi.types.i32:size()):release();
+    glfw.glfwGetFramebufferSize(
         self.handle,
         width,
         height
@@ -193,7 +210,7 @@ end
 --[=[
     Retrieves the monitor that the window is in fullscreen on.
 ]=]
-function window.getMonitor(self: Window): ffi.Pointer
+function window.getMonitor(self: Window): FFIPointer
     if (not self.handle) then
         error("Window handle is invalid");
     end
@@ -204,7 +221,7 @@ end
 --[=[
     Sets the mode, monitor, video mode and placement of a window.
 ]=]
-function window.setMonitor(self: Window, monitor: ffi.Pointer, xpos: number, ypos: number, width: number, height: number, refreshRate: number): ()
+function window.setMonitor(self: Window, monitor: FFIPointer, xpos: number, ypos: number, width: number, height: number, refreshRate: number): ()
     if (not self.handle) then
         error("Window handle is invalid");
     end
@@ -230,7 +247,7 @@ function window.setPositionCallback(self: Window, callback: (window: Window, xpo
     end
     local closure = ffi.closure(glfw.GLFWwindowposfun, callback);
     self.callbacks.pos = closure;
-    glfw.glfwSetWindowPosCallback(self.handle, closure.ptr);
+    glfw.glfwSetWindowPosCallback(self.handle, closure);
 end
 
 --[=[
@@ -242,13 +259,13 @@ function window.setSizeCallback(self: Window, callback: (window: Window, width: 
     end
     local closure = ffi.closure(glfw.GLFWwindowsizefun, callback);
     self.callbacks.size = closure;
-    glfw.glfwSetWindowSizeCallback(self.handle, closure.ptr);
+    glfw.glfwSetWindowSizeCallback(self.handle, closure);
 end
 
-local function setOptionalCallback(name: string, ffiFn : (...any) -> ffi.Pointer, window: Window, fnDef: ffi.FunctionDefinition, callback: ((...any) -> any)?): ()
+local function setOptionalCallback(name: string, ffiFn : (...any) -> FFIPointer, window: Window, fnDef: FFIFunctionDef, callback: ((...any) -> any)?): ()
     local previousCallback = window.callbacks[name];
     if (previousCallback) then
-        previousCallback.ptr:release();
+        previousCallback:release();
     end
     if (not callback) then
         ffiFn(window.handle, nil);
@@ -262,7 +279,7 @@ local function setOptionalCallback(name: string, ffiFn : (...any) -> ffi.Pointer
         end
         return callback(...);
     end);
-    ffiFn(window.handle, closure.ptr);
+    ffiFn(window.handle, closure);
     window.callbacks[name] = closure;
 end
 
