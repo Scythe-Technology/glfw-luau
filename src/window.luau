@@ -262,7 +262,7 @@ function window.setSizeCallback(self: Window, callback: (window: Window, width: 
     glfw.glfwSetWindowSizeCallback(self.handle, closure);
 end
 
-local function setOptionalCallback(name: string, ffiFn : (...any) -> FFIPointer, window: Window, fnDef: FFIFunctionDef, callback: ((...any) -> any)?): ()
+local function setOptionalCallback(name: string, ffiFn : (...any) -> FFIPointer, window: Window, fnDef: FFIFunctionDefintion, callback: ((...any) -> any)?): ()
     local previousCallback = window.callbacks[name];
     if (previousCallback) then
         previousCallback:release();

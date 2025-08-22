@@ -9,12 +9,13 @@ local GLFW_FALSE = 0;
 local LIBRARY_PATH = `./libs/glfw/build/src/{ffi.prefix}glfw.{ffi.suffix}`;
 if (process.os == "windows") then
     LIBRARY_PATH = `./libs/glfw/build/src/{
-        if (fs.isDir(`./libs/glfw/build/src/Release`)) then "Release" else "Debug"
+        if (fs.stat(`./libs/glfw/build/src/Release`).kind ~= "none") then "Release" else "Debug"
     }/{ffi.prefix}glfw3.{ffi.suffix}`;
 end
 
 local GLFWwindow = ffi.types.pointer:newTag("GLFWwindow");
 local GLFWmonitor = ffi.types.pointer:newTag("GLFWmonitor");
+local GLFWglproc = ffi.types.pointer:newTag("GLFWglproc");
 
 --void(* GLFWwindowsizefun) (GLFWwindow *window, int width, int height)
 local GLFWwindowsizefun = {
@@ -317,7 +318,7 @@ local glfw = ffi.dlopen(LIBRARY_PATH, {
     },
     --GLFWglproc glfwGetProcAddress (const char *procname)
     glfwGetProcAddress = {
-        returns = ffi.types.pointer,
+        returns = GLFWglproc,
         args = {ffi.types.pointer},
     },
 });
@@ -655,15 +656,15 @@ type pointer = FFIPointer;
 type glfw_c = {
     GLFW_TRUE : number,
     GLFW_FALSE : number,
-    GLFWwindowsizefun : FFIFunctionDef,
-    GLFWwindowposfun : FFIFunctionDef,
-    GLFWwindowclosefun : FFIFunctionDef,
-    GLFWwindowrefreshfun : FFIFunctionDef,
-    GLFWwindowfocusfun : FFIFunctionDef,
-    GLFWwindowiconifyfun : FFIFunctionDef,
-    GLFWwindowmaximizefun : FFIFunctionDef,
-    GLFWframebuffersizefun : FFIFunctionDef,
-    GLFWwindowcontentscalefun : FFIFunctionDef,
+    GLFWwindowsizefun : FFIFunctionDefintion,
+    GLFWwindowposfun : FFIFunctionDefintion,
+    GLFWwindowclosefun : FFIFunctionDefintion,
+    GLFWwindowrefreshfun : FFIFunctionDefintion,
+    GLFWwindowfocusfun : FFIFunctionDefintion,
+    GLFWwindowiconifyfun : FFIFunctionDefintion,
+    GLFWwindowmaximizefun : FFIFunctionDefintion,
+    GLFWframebuffersizefun : FFIFunctionDefintion,
+    GLFWwindowcontentscalefun : FFIFunctionDefintion,
 
     glfwInit : () -> number,
     glfwTerminate : () -> (),
