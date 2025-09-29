@@ -9,7 +9,7 @@ local window = require("@self/window");
 
 local module = {};
 
-module.gl = require("@self/build/gl");
+module.gl = require("@self/gl");
 
 module.D = c.defined;
 
@@ -48,6 +48,9 @@ function module.getPlatform(): number
 end
 function module.getProcAddress(name: string): FFIPointer
     return glfw.glfwGetProcAddress(name);
+end
+function module.extensionSupported(extension: string): boolean
+    return glfw.glfwExtensionSupported(extension) == glfw.GLFW_TRUE;
 end
 function module.getPlatformName(platform: number): string
     return c.Platforms[platform];
